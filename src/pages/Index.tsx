@@ -4,11 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Icon from '@/components/ui/icon';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [cart, setCart] = useState([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   // Моковые данные заказов
   const orders = [
@@ -53,7 +56,44 @@ const Index = () => {
   };
 
   const addToCart = (product) => {
-    setCart([...cart, product]);
+    const cartItem = {
+      ...product,
+      cartId: Date.now() + Math.random(),
+      quantity: 1
+    };
+    setCart([...cart, cartItem]);
+  };
+
+  const removeFromCart = (cartId) => {
+    setCart(cart.filter(item => item.cartId !== cartId));
+  };
+
+  const replaceInCart = (cartId, newProduct) => {
+    setCart(cart.map(item => 
+      item.cartId === cartId 
+        ? { ...newProduct, cartId, quantity: item.quantity }
+        : item
+    ));
+  };
+
+  const updateQuantity = (cartId, quantity) => {
+    if (quantity === 0) {
+      removeFromCart(cartId);
+      return;
+    }
+    setCart(cart.map(item => 
+      item.cartId === cartId 
+        ? { ...item, quantity }
+        : item
+    ));
+  };
+
+  const getTotalPrice = () => {
+    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
+
+  const getTotalItems = () => {
+    return cart.reduce((total, item) => total + item.quantity, 0);
   };
 
   return (
@@ -72,10 +112,108 @@ const Index = () => {
                 Уведомления
               </Button>
               <div className="relative">
-                <Button variant="outline" size="sm">
-                  <Icon name="ShoppingCart" size={16} className="mr-2" />
-                  Корзина ({cart.length})
-                </Button>
+                <Dialog open={isCartOpen} onOpenChange={setIsCartOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Icon name="ShoppingCart" size={16} className="mr-2" />
+                      Корзина ({getTotalItems()})
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Корзина товаров</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      {cart.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <Icon name="ShoppingCart" size={48} className="mx-auto mb-4 text-gray-300" />
+                          <p>Корзина пустая</p>
+                        </div>
+                      ) : (
+                        <>
+                          {cart.map((item) => (
+                            <div key={item.cartId} className="border rounded-lg p-4">
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center space-x-3">
+                                  <div className="text-2xl">{item.image}</div>
+                                  <div>
+                                    <h4 className="font-medium">{item.name}</h4>
+                                    <p className="text-sm text-gray-500">{item.category}</p>
+                                    <p className="font-bold">₽{item.price} × {item.quantity}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => updateQuantity(item.cartId, item.quantity - 1)}
+                                  >
+                                    <Icon name="Minus" size={14} />
+                                  </Button>
+                                  <span className="w-8 text-center">{item.quantity}</span>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => updateQuantity(item.cartId, item.quantity + 1)}
+                                  >
+                                    <Icon name="Plus" size={14} />
+                                  </Button>
+                                </div>
+                              </div>
+                              
+                              <div className="flex space-x-2">
+                                <Select onValueChange={(value) => {
+                                  const newProduct = products.find(p => p.id === parseInt(value));
+                                  if (newProduct) replaceInCart(item.cartId, newProduct);
+                                }}>
+                                  <SelectTrigger className="flex-1">
+                                    <SelectValue placeholder="Заменить на..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {products.filter(p => p.id !== item.id).map((product) => (
+                                      <SelectItem key={product.id} value={product.id.toString()}>
+                                        {product.image} {product.name} - ₽{product.price}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => removeFromCart(item.cartId)}
+                                >
+                                  <Icon name="Trash2" size={14} className="mr-1" />
+                                  Удалить
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                          
+                          <div className="border-t pt-4">
+                            <div className="flex justify-between items-center mb-4">
+                              <span className="text-lg font-medium">Итого:</span>
+                              <span className="text-xl font-bold">₽{getTotalPrice()}</span>
+                            </div>
+                            <div className="flex space-x-2">
+                              <Button
+                                variant="outline"
+                                className="flex-1"
+                                onClick={() => setCart([])}
+                              >
+                                Очистить корзину
+                              </Button>
+                              <Button className="flex-1">
+                                <Icon name="Check" size={16} className="mr-2" />
+                                Оформить заказ
+                              </Button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
             </div>
           </div>
